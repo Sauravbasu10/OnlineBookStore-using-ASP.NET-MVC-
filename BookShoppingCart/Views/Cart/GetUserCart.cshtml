@@ -1,0 +1,128 @@
+﻿@model ShoppingCart
+@{
+    ViewData["Title"] = "GetUserCart";
+}
+
+<div style="width: 90%; margin:auto" class="mt-2">
+    @if (Model != null && Model.CartDetails != null && Model.CartDetails.Count > 0)
+    {
+        <h2 class="text-center">My Shopping Cart</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Book</th>
+                    <th>Image</th>
+                    <th>Genre</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Total Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.CartDetails)
+                {
+                    <tr id="row-@item.BookId">
+                        <td>@item.Book.BookName</td>
+                        <td>
+                            <img src="~/images/@(string.IsNullOrEmpty(item.Book.Image) ? "NoImage.jpeg" : item.Book.Image)" style="width:80px; height:100px;" />
+                        </td>
+                        <td>@item.Book.Genre.GenreName</td>
+                        <td id="price-@item.BookId">@item.Book.Price.ToString("0.00")</td>
+                        <td id="qty-@item.BookId">@item.Quantity</td>
+                        <td id="lineTotal-@item.BookId">@((item.Book.Price * item.Quantity).ToString("0.00"))</td>
+                        <td>
+                            @if (item.Quantity < item.Book.Stock.Quantity)
+                            {
+                                <button type="button" class="btn btn-info" onclick="addItem(@item.BookId)">+</button>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger p-2">
+                                    Out of stock
+                                </span>
+                            }
+
+                            <button type="button" class="btn btn-danger ms-1" onclick="removeItem(@item.BookId)">-</button>
+
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="my-2">
+            <h5>Total ($): $<span id="grandTotal">@Model.CartDetails.Sum(item => item.Book.Price * item.Quantity).ToString("0.00")</span></h5>
+        </div>
+
+        <div class="my-2">
+            <a class="btn btn-primary" href="/Cart/Checkout">Checkout</a>
+        </div>
+    }
+    else
+    {
+        <h2 class="text-center">Your Shopping Cart is Empty</h2>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        async function addItem(bookId) {
+            try {
+                const response = await fetch(`/Cart/AddItem?bookId=${bookId}`);
+                if (response.ok) {
+                    updateCartUI(bookId, true);
+                }
+            } catch (err) {
+                console.error("Add error:", err);
+            }
+        }
+
+        async function removeItem(bookId) {
+            try {
+                const response = await fetch(`/Cart/RemoveItem?bookId=${bookId}`);
+                if (response.ok) {
+                    updateCartUI(bookId, false);
+                }
+            } catch (err) {
+                console.error("Remove error:", err);
+            }
+        }
+
+        function updateCartUI(bookId, isAdd) {
+            const qtyEl = document.getElementById(`qty-${bookId}`);
+            const lineTotalEl = document.getElementById(`lineTotal-${bookId}`);
+            const priceEl = document.getElementById(`price-${bookId}`);
+
+            if (!qtyEl || !lineTotalEl || !priceEl) return;
+
+            let qty = parseInt(qtyEl.innerText);
+            const unitPrice = parseFloat(priceEl.innerText);
+
+            if (isAdd) {
+                qty += 1;
+            } else {
+                qty -= 1;
+            }
+
+            if (qty <= 0) {
+                const row = document.getElementById(`row-${bookId}`);
+                row.remove();
+            } else {
+                qtyEl.innerText = qty;
+                lineTotalEl.innerText = (unitPrice * qty).toFixed(2);
+            }
+
+            updateGrandTotal();
+        }
+
+        function updateGrandTotal() {
+            let total = 0;
+            const lineTotals = document.querySelectorAll('[id^="lineTotal-"]');
+            lineTotals.forEach(el => {
+                total += parseFloat(el.innerText || "0");
+            });
+            document.getElementById("grandTotal").innerText = total.toFixed(2);
+        }
+    </script>
+}

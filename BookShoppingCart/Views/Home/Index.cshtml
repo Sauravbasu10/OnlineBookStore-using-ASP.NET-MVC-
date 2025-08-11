@@ -1,0 +1,91 @@
+﻿@model BookDisplayModel
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="container my-4">
+
+    <!-- Search and Filter -->
+    <form asp-action="Index" method="get" class="row g-2 mb-4">
+        <div class="col-md-4">
+            <select asp-for="GenreId" asp-items="@(new SelectList(Model.Genres, "Id", "GenreName"))" class="form-select">
+                <option value="">Choose a genre</option>
+            </select>
+        </div>
+
+        <div class="col-md-5">
+            <input type="text" class="form-control" value="@Model.STerm" name="sterm" placeholder="Search by title..." />
+        </div>
+
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-outline-primary w-100">Search</button>
+            <a href="/Home/Index" class="btn btn-outline-dark w-100">Reset</a>
+        </div>
+    </form>
+
+    <!-- Book Cards Grid -->
+    <div class="row">
+        @foreach (var book in Model.Books)
+        {
+            <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <img src="~/images/@(string.IsNullOrEmpty(book.Image) ? "NoImage.jpeg" : book.Image)"
+                         class="card-img-top img-fluid border-bottom"
+                         style="height: 250px; object-fit: contain;" alt="Book Image" />
+                    <div class="card-body d-flex flex-column p-2">
+                        <h6 class="card-title text-primary text-truncate mb-1">@book.BookName</h6>
+                        <p class="mb-1 text-muted" style="font-size: 0.85rem;">
+                            <strong>Genre:</strong> @book.GenreName<br />
+                            <strong>Author:</strong> @book.AuthorName<br />
+                            @* <strong></strong> @book.Quantity *@
+                        </p>
+                        
+                        <p class="fw-bold mb-2 text-dark">$@book.Price.ToString("0.00")</p>
+                        @if (book.Quantity > 0)
+                        {
+                            <button class="btn btn-sm btn-outline-primary mt-auto w-100" onclick="add(@book.Id)">
+                                Add to Cart
+                            </button>
+                        }
+                        else
+                        {
+                            <span style="border: 1px solid; padding: 5px 8px; color: red; border-radius: 5px">Out of stock</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function add(bookId) {
+            const authEl = document.getElementById("isAuthenticated");
+            const isLoggedIn = authEl && authEl.innerText.trim() === "true";
+
+            if (!isLoggedIn) {
+                window.location.href = "/Identity/Account/Login";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/Cart/AddItem?bookId=${bookId}`);
+                const contentType = response.headers.get("content-type");
+
+                if (response.ok && contentType && contentType.includes("application/json")) {
+                    const result = await response.json();
+                    const cartCountEl = document.getElementById("cartCount");
+                    if (cartCountEl) cartCountEl.innerText = result;
+                } else {
+                    const htmlText = await response.text();
+                    if (htmlText.includes("<!DOCTYPE html>")) {
+                        window.location.href = "/Identity/Account/Login";
+                    }
+                }
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        }
+    </script>
+}
